@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modify Record - GameTracker</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #0f172a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 32px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; width: 100%; max-width: 440px; box-sizing: border-box; }
+        h2 { margin-top: 0; font-size: 20px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; color: #475569; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        .btn-group { display: flex; gap: 12px; }
+        .btn { flex: 1; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; text-decoration: none; text-align: center; }
+        .btn-save { background: #4f46e5; color: white; }
+        .btn-save:hover { background: #4338ca; }
+        .btn-cancel { background: #f1f5f9; color: #475569; }
+        .btn-cancel:hover { background: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Modify Logged Entry</h2>
+        <form action="/game/edit/{{ record.id }}" method="post">
+            <label>Game Title</label>
+            <select name="game_name" required>
+                {% for game in games %}
+                    <option value="{{ game }}" {% if game == record.game_name %}selected{% endif %}>{{ game }}</option>
+                {% endfor %}
+            </select>
+            
+            <label>Time Tracked</label>
+            <input type="text" name="playtime" value="{{ record.playtime }}" required>
+            
+            <label>Current Level</label>
+            <input type="text" name="levels" value="{{ record.levels }}" required>
+            
+            <div class="btn-group">
+                <button type="submit" class="btn btn-save">Save Changes</button>
+                <a href="/dashboard" class="btn btn-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

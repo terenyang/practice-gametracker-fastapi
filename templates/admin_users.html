@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - GameTracker</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px; color: #0f172a; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 24px; color: #1e293b; }
+        .back-link { text-decoration: none; color: #4f46e5; font-weight: 500; display: inline-block; margin-bottom: 24px; }
+        .back-link:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 20px; }
+        th { font-size: 13px; font-weight: 600; text-transform: uppercase; color: #64748b; padding: 14px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
+        .badge { padding: 4px 10px; border-radius: 50px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge-admin { background: #e0e7ff; color: #4338ca; }
+        .badge-user { background: #f1f5f9; color: #475569; }
+        .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-pending { background: #fef3c7; color: #d97706; }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-suspended { background: #fee2e2; color: #991b1b; }
+        .btn { padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; color: white; transition: background 0.15s; }
+        .btn-approve { background: #10b981; }
+        .btn-approve:hover { background: #059669; }
+        .btn-disable { background: #ef4444; }
+        .btn-disable:hover { background: #dc2626; }
+        .btn-enable { background: #3b82f6; }
+        .btn-enable:hover { background: #2563eb; }
+        .btn-role { background: #6366f1; }
+        .btn-role:hover { background: #4f46e5; }
+        .btn-demote { background: #f59e0b; }
+        .btn-demote:hover { background: #d97706; }
+        .self-text { color: #94a3b8; font-style: italic; font-size: 14px; }
+        .actions-cell { display: flex; gap: 8px; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-link">← Back to System Dashboard</a>
+        
+        <div class="card">
+            <h2>System Account Registry</h2>
+            <p style="color: #64748b; margin-top: -8px;">Authorized administrative lookup context.</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Account Permissions</th>
+                        <th>Network Status</th>
+                        <th>Operational Access Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                        <tr>
+                            <td><strong>{{ u.username }}</strong></td>
+                            <td>
+                                {% if u.isadmin %}
+                                    <span class="badge badge-admin">Administrator</span>
+                                {% else %}
+                                    <span class="badge badge-user">Standard User</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not u.approved %}
+                                    <span class="status-badge status-pending">🕒 Pending Approval</span>
+                                {% elif u.isenable %}
+                                    <span class="status-badge status-active">● Active</span>
+                                {% else %}
+                                    <span class="status-badge status-suspended">○ Suspended</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="actions-cell">
+                                    {% if u.username == user %}
+                                        <span class="self-text">Protected Session Profile</span>
+                                    {% else %}
+                                        
+                                        <!-- Case 1: User is completely new and needs approval -->
+                                        {% if not u.approved %}
+                                            <form action="/admin/approve/{{ u.username }}" method="post" style="margin:0;">
+                                                <button type="submit" class="btn btn-approve">Approve Profile</button>
+                                            </form>
+                                            
+                                        <!-- Case 2: User is approved, toggle suspend/unsuspend & roles -->
+                                        {% else %}
+                                            <!-- Suspend/Unsuspend Button -->
+                                            <form action="/admin/toggle/{{ u.username }}" method="post" style="margin:0;">
+                                                <input type="hidden" name="current_status" value="{% if u.isenable %}1{% else %}0{% endif %}">
+                                                <button type="submit" class="btn {% if u.isenable %}btn-disable{% else %}btn-enable{% endif %}">
+                                                    {% if u.isenable %}Suspend Profile{% else %}Authorize Profile{% endif %}
+                                                </button>
+                                            </form>
+
+                                            <!-- Promote/Demote Roles Button -->
+                                            <form action="/admin/toggle-role/{{ u.username }}" method="post" style="margin:0;">
+                                                <input type="hidden" name="current_role" value="{% if u.isadmin %}1{% else %}0{% endif %}">
+                                                <button type="submit" class="btn {% if u.isadmin %}btn-demote{% else %}btn-role{% endif %}">
+                                                    {% if u.isadmin %}Demote to User{% else %}Promote to Admin{% endif %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

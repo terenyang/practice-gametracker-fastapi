@@ -1,0 +1,15 @@
+# Databases
+*.db
+users.db
+
+# Python virtual environments and packages
+.venv/
+venv/
+ENV/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
