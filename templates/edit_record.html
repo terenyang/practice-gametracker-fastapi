@@ -3,43 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modify Record - GameTracker</title>
+    <title>Edit Session - GameTracker</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #0f172a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 32px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; width: 100%; max-width: 440px; box-sizing: border-box; }
-        h2 { margin-top: 0; font-size: 20px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; color: #0f172a; }
+        header { background: white; border-bottom: 1px solid #e2e8f0; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; }
+        header h2 { margin: 0; font-size: 20px; color: #1e293b; }
+        .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; font-size: 18px; color: #334155; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px; }
         label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; color: #475569; }
-        input, select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
-        .btn-group { display: flex; gap: 12px; }
-        .btn { flex: 1; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; text-decoration: none; text-align: center; }
-        .btn-save { background: #4f46e5; color: white; }
-        .btn-save:hover { background: #4338ca; }
-        .btn-cancel { background: #f1f5f9; color: #475569; }
-        .btn-cancel:hover { background: #e2e8f0; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .btn { padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; text-decoration: none; display: inline-block; text-align: center; }
+        .btn-primary { background: #4f46e5; color: white; width: 100%; padding: 12px; margin-top: 10px; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-cancel { background: transparent; border: 1px solid #cbd5e1; color: #64748b; width: 100%; box-sizing: border-box; margin-top: 10px; }
+        .btn-cancel:hover { background: #f1f5f9; color: #334155; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Modify Logged Entry</h2>
-        <form action="/game/edit/{{ record.id }}" method="post">
-            <label>Game Title</label>
-            <select name="game_name" required>
-                {% for game in games %}
-                    <option value="{{ game }}" {% if game == record.game_name %}selected{% endif %}>{{ game }}</option>
-                {% endfor %}
-            </select>
+
+    <header>
+        <h2>🎮 GameTracker / Modify Log Entry</h2>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h3>Update Logged Session Details</h3>
             
-            <label>Time Tracked</label>
-            <input type="text" name="playtime" value="{{ record.playtime }}" required>
-            
-            <label>Current Level</label>
-            <input type="text" name="levels" value="{{ record.levels }}" required>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-save">Save Changes</button>
-                <a href="/dashboard" class="btn btn-cancel">Cancel</a>
-            </div>
-        </form>
+            <form id="editRecordForm" action="/game/edit/{{ record.id }}" method="post">
+                
+                <!-- Game Title Selector -->
+                <label for="game_name">Select Title</label>
+                <select name="game_name" id="game_name" required>
+                    {% for game in games %}
+                        <option value="{{ game }}" {% if game == record.game_name %}selected{% endif %}>{{ game }}</option>
+                    {% endfor %}
+                </select>
+                
+                <!-- Hours and Minutes Input Row -->
+                <div class="form-group" style="display: flex; gap: 12px; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <label for="hours">Hours:</label>
+                        <input type="number" name="hours" id="hours" min="0" max="24" value="{{ record.hours }}" required>
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="minutes">Minutes:</label>
+                        <input type="number" name="minutes" id="minutes" min="0" max="59" value="{{ record.minutes }}" required>
+                    </div>
+                </div>
+
+                <!-- Level / Benchmark Input -->
+                <label for="levels">Level / Benchmark reached</label>
+                <input type="text" name="levels" id="levels" value="{{ record.levels }}" required>
+                
+                <!-- Date Picker Input -->
+                <div class="form-group">
+                    <label for="date_logged">Date Logged:</label>
+                    <input type="date" name="date_logged" id="date_logged" value="{{ record.date_logged }}" required>
+                </div>
+                
+                <!-- Submission Controls -->
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="/dashboard" class="btn btn-cancel">Cancel and Go Back</a>
+            </form>
+        </div>
     </div>
+
+    <!-- Active interactive logic validation framework -->
+    <script>
+        const editHours = document.getElementById('hours');
+        const editMinutes = document.getElementById('minutes');
+        const editForm = document.getElementById('editRecordForm');
+
+        function checkEditHoursLimit() {
+            if (parseInt(editHours.value) === 24) {
+                editMinutes.value = 0;
+                editMinutes.disabled = true;
+                editMinutes.style.backgroundColor = '#e2e8f0';
+                editMinutes.style.cursor = 'not-allowed';
+            } else {
+                editMinutes.disabled = false;
+                editMinutes.style.backgroundColor = '';
+                editMinutes.style.cursor = '';
+            }
+        }
+
+        editHours.addEventListener('input', checkEditHoursLimit);
+        
+        // Execute structural logic check instantly once DOM mapping finishes loading
+        window.addEventListener('DOMContentLoaded', checkEditHoursLimit);
+
+        // Standard safety gate framework to preserve zero value payload data pipeline transmittal
+        editForm.addEventListener('submit', () => {
+            editMinutes.disabled = false;
+        });
+    </script>
 </body>
 </html>
