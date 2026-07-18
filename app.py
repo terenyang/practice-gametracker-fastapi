@@ -2,6 +2,7 @@ import os
 import sqlite3 
 import hashlib
 import json
+import re
 from datetime import date
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -160,7 +161,13 @@ def dashboard(request: Request):
     cursor.execute("SELECT id, game_name, playtime, levels, date_logged FROM game_records WHERE username = ?", (user,))
     records = []
     for row in cursor.fetchall():
-        pt = float(row[2] or 0.0)
+        raw_playtime = row[2] or "0.0"
+        try:
+            pt = float(raw_playtime)
+        except ValueError:
+            numeric_match = re.search(r"[-+]?\d*\.\d+|\d+", str(raw_playtime))
+            pt = float(numeric_match.group()) if numeric_match else 0.0
+
         h = int(pt)
         m = int(round((pt - h) * 60))
         records.append({
@@ -273,7 +280,7 @@ def admin_delete_game(request: Request, game_id: int):
 
 
 # ==========================================
-# 📊 METRICS & MULTI-CHART GRAPHING PLATFORM
+# 📊 METRICS & TWIN LINE GRAPHING ENGINE
 # ==========================================
 
 @app.get("/admin/charts", response_class=HTMLResponse)
@@ -284,24 +291,28 @@ def admin_charts_page(request: Request):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     
-    # 1. Timeline extraction (X-Axis)
+    # 1. Fetch chronological timeline of dates (X-Axis Labels)
     cursor.execute("SELECT DISTINCT date_logged FROM game_records ORDER BY date_logged ASC")
     timeline_dates = [row[0] for row in cursor.fetchall() if row[0]]
     
-    # 2. Extract distinct users
-    cursor.execute("SELECT DISTINCT username FROM game_records")
-    active_users = [row[0] for row in cursor.fetchall()]
-    
+    # 2. Query distinct users and generate locked palette keys
+    cursor.execute("SELECT username FROM users")
+    all_users = [row[0] for row in cursor.fetchall()]
     user_color_map = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
-    cumulative_datasets = []
+    user_colors = {user: user_color_map[i % len(user_color_map)] for i, user in enumerate(all_users)}
     
-    # Build a sequential running total graph per individual user
-    for idx, target_user in enumerate(active_users):
+    # --- CHART A: OVERALL CUMULATIVE COMPARISON ---
+    cumulative_datasets = []
+    for target_user in all_users:
         daily_map = {d: 0.0 for d in timeline_dates}
-        cursor.execute("SELECT date_logged, SUM(CAST(playtime AS REAL)) FROM game_records WHERE username = ? GROUP BY date_logged", (target_user,))
-        for r_date, sum_hours in cursor.fetchall():
+        cursor.execute("SELECT date_logged, playtime FROM game_records WHERE username = ?", (target_user,))
+        for r_date, r_playtime in cursor.fetchall():
             if r_date in daily_map:
-                daily_map[r_date] = sum_hours or 0.0
+                try: val = float(r_playtime or 0.0)
+                except ValueError:
+                    m = re.search(r"[-+]?\d*\.\d+|\d+", str(r_playtime))
+                    val = float(m.group()) if m else 0.0
+                daily_map[r_date] += val
                 
         cumulative_list = []
         running_accumulator = 0.0
@@ -309,22 +320,54 @@ def admin_charts_page(request: Request):
             running_accumulator += daily_map[d]
             cumulative_list.append(round(running_accumulator, 2))
             
-        cumulative_datasets.append({
-            "label": target_user,
-            "data": cumulative_list,
-            "borderColor": user_color_map[idx % len(user_color_map)],
-            "backgroundColor": user_color_map[idx % len(user_color_map)] + "10",
-            "borderWidth": 3,
-            "tension": 0.15,
-            "fill": True
-        })
+        if any(cumulative_list):
+            cumulative_datasets.append({
+                "label": target_user,
+                "data": cumulative_list,
+                "borderColor": user_colors[target_user],
+                "backgroundColor": user_colors[target_user] + "10",
+                "borderWidth": 3,
+                "tension": 0.15,
+                "fill": True
+            })
         
-    # 3. Game Catalog Distribution extraction
-    cursor.execute("SELECT game_name, SUM(CAST(playtime AS REAL)) FROM game_records GROUP BY game_name ORDER BY SUM(CAST(playtime AS REAL)) DESC")
-    game_rows = cursor.fetchall()
-    game_labels = [row[0] for row in game_rows]
-    game_data_points = [round(row[1] or 0.0, 2) for row in game_rows]
+    # --- CHART B: INDIVIDUAL GAME TIMELINE LINE CHARTS ---
+    cursor.execute("SELECT DISTINCT game_name FROM game_records")
+    active_games = [row[0] for row in cursor.fetchall() if row[0]]
+    games_chart_data = []
     
+    for game in active_games:
+        game_datasets = []
+        for target_user in all_users:
+            user_game_map = {d: 0.0 for d in timeline_dates}
+            cursor.execute("SELECT date_logged, playtime FROM game_records WHERE game_name = ? AND username = ?", (game, target_user))
+            for r_date, r_playtime in cursor.fetchall():
+                if r_date in user_game_map:
+                    try: val = float(r_playtime or 0.0)
+                    except ValueError:
+                        m = re.search(r"[-+]?\d*\.\d+|\d+", str(r_playtime))
+                        val = float(m.group()) if m else 0.0
+                    user_game_map[r_date] += val
+            
+            user_data_points = [round(user_game_map[d], 2) for d in timeline_dates]
+            
+            if any(user_data_points):
+                game_datasets.append({
+                    "label": target_user,
+                    "data": user_data_points,
+                    "borderColor": user_colors[target_user],
+                    "backgroundColor": user_colors[target_user] + "05",
+                    "borderWidth": 2.5,
+                    "tension": 0.2,
+                    "fill": False
+                })
+        
+        if game_datasets:
+            games_chart_data.append({
+                "game_name": game,
+                "datasets": game_datasets
+            })
+            
     conn.close()
     
     return templates.TemplateResponse(
@@ -333,8 +376,7 @@ def admin_charts_page(request: Request):
             "user": request.session.get("user"),
             "chart_dates": json.dumps(timeline_dates),
             "chart_datasets": json.dumps(cumulative_datasets),
-            "game_labels": json.dumps(game_labels),
-            "game_data": json.dumps(game_data_points)
+            "games_chart_data": json.dumps(games_chart_data)
         }
     )
 
@@ -345,22 +387,25 @@ def admin_charts_page(request: Request):
 
 @app.post("/game/add")
 def add_record(
+    request: Request,
     game_name: str = Form(...), 
     hours: int = Form(...), 
     minutes: int = Form(...), 
     levels: str = Form(...), 
     date_logged: str = Form(...)
 ):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
     if not (0 <= hours <= 24) or not (0 <= minutes <= 59):
-        return HTMLResponse("Boundary protection triggered: Hours [0-24], Minutes [0-59]. <a href='/dashboard'>Back</a>", status_code=400)
+        return HTMLResponse("Boundary protection triggered. <a href='/dashboard'>Back</a>", status_code=400)
     
-    # Calculate uniform backend decimal playtime representation
     calculated_decimal = round(hours + (minutes / 60.0), 2)
     
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     cursor.execute("INSERT INTO game_records (username, game_name, playtime, levels, date_logged) VALUES (?, ?, ?, ?, ?)",
-                   ("ryan", game_name, str(calculated_decimal), levels, date_logged)) # Standardized fallback if session tracking isolates
+                   (user, game_name, str(calculated_decimal), levels, date_logged))
     conn.commit()
     conn.close()
     return RedirectResponse(url="/dashboard", status_code=303)
@@ -379,7 +424,12 @@ def edit_record_page(request: Request, record_id: int):
         conn.close()
         return HTMLResponse("Unauthorized path exception.", status_code=404)
         
-    pt = float(row[2] or 0.0)
+    raw_playtime = row[2] or "0.0"
+    try: pt = float(raw_playtime)
+    except ValueError:
+        m = re.search(r"[-+]?\d*\.\d+|\d+", str(raw_playtime))
+        pt = float(m.group()) if m else 0.0
+
     extracted_hours = int(pt)
     extracted_minutes = int(round((pt - extracted_hours) * 60))
     
