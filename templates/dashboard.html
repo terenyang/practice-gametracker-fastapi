@@ -65,7 +65,8 @@
                         {% for record in records %}
                             <tr>
                                 <td><strong>{{ record.game_name }}</strong></td>
-                                <td>{{ record.playtime }}</td>
+                                <!-- Updated variable placeholder to render backend-formatted time display -->
+                                <td>{{ record.playtime_display }}</td>
                                 <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px;">{{ record.levels }}</span></td>
                                 <td class="actions-cell">
                                     <a href="/game/edit/{{ record.id }}" class="btn btn-edit">Edit</a>
@@ -85,7 +86,8 @@
         <!-- Right Side: Sidebar Add Form -->
         <div class="card" style="height: fit-content;">
             <h3>Log Gaming Session</h3>
-            <form action="/game/add" method="post">
+            <!-- Added id attribute to catch submission hook -->
+            <form id="addRecordForm" action="/game/add" method="post">
                 <label>Select Title</label>
                 <select name="game_name" required>
                     <option value="" disabled selected>-- Choose a Game --</option>
@@ -115,5 +117,33 @@
             </form>
         </div>
     </div>
+
+    <!-- Interactive minute field blocker script pipeline -->
+    <script>
+        const hoursInput = document.getElementById('hours');
+        const minutesInput = document.getElementById('minutes');
+        const recordForm = document.getElementById('addRecordForm');
+
+        function checkHoursLimit() {
+            if (parseInt(hoursInput.value) === 24) {
+                minutesInput.value = 0;
+                minutesInput.disabled = true;
+                minutesInput.style.backgroundColor = '#e2e8f0'; // Gray it out visually
+                minutesInput.style.cursor = 'not-allowed';
+            } else {
+                minutesInput.disabled = false;
+                minutesInput.style.backgroundColor = ''; // Reset styling
+                minutesInput.style.cursor = '';
+            }
+        }
+
+        // Listen for user interactions
+        hoursInput.addEventListener('input', checkHoursLimit);
+
+        // Standard safety bypass: Re-enable right before submission so data transmits to FastAPI
+        recordForm.addEventListener('submit', () => {
+            minutesInput.disabled = false;
+        });
+    </script>
 </body>
 </html>
